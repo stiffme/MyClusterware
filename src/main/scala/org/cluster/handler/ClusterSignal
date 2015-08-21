@@ -1,4 +1,7 @@
-package org.cluster
+package org.cluster.handler
+
+import scala.collection.immutable.HashMap
+
 //ClusterSignal between ClusterCentral and ClusterHandler.
 
 private object ClusterSignal  {
@@ -8,5 +11,6 @@ private object ClusterSignal  {
   final val SigClusterHeartbeat = "CLUSTER_HEARTBEAT"
 
   final val SigClusterHeartbeatAck = "CLUSTER_HEARTBEAT_ACK"
+
 
 }
