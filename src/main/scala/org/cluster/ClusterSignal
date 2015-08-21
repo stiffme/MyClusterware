@@ -1,0 +1,12 @@
+package org.cluster
+//ClusterSignal between ClusterCentral and ClusterHandler.
+
+private object ClusterSignal  {
+  object ClusterSigType extends Enumeration {
+    
+  }
+  final val SigClusterHeartbeat = "CLUSTER_HEARTBEAT"
+
+  final val SigClusterHeartbeatAck = "CLUSTER_HEARTBEAT_ACK"
+
+}
