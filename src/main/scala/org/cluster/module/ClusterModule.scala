@@ -39,6 +39,8 @@ case class SigCMHandover(target:ActorRef)
 case class SigCMHandoverResult(success:Boolean)
 case object SigCMTerminate
 case class SigCMTerminateResult(success:Boolean)
+case object SigCMRefreshReference
+case class SigCMRefreshReferenceResult(success:Boolean)
 private case object SigCMFaulty
 
 trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with ActorLogging{
@@ -47,6 +49,7 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
   def onActivate():Boolean
   def onHandover(target:ActorRef):Boolean
   def onTerminate():Boolean
+  def refreshReference():Boolean
   def appReceive:PartialFunction[Any,Unit]
 
   //initial state: Uninitialized,CMEmpty
@@ -83,6 +86,20 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
       val origin = sender()
       goto(Terminated) using CMDataSender(origin)
     }
+    case Event(SigCMRefreshReference, _) => {
+      try{
+        val success = refreshReference()
+        sender ! SigCMRefreshReferenceResult(success)
+        stay()
+      } catch {
+        case e:Exception => {
+          log.error("Error refreshing reference",e)
+          sender ! SigCMRefreshReferenceResult(false)
+          stay()
+        }
+      }
+    }
+
     case Event(e,_) =>  {
       if(appReceive.isDefinedAt(e))
         appReceive(e)

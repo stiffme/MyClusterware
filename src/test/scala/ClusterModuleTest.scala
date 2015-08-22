@@ -28,6 +28,8 @@ class ClusterModuleTest (_system:ActorSystem) extends TestKit(_system)
 
     override def onHandover(target: ActorRef): Boolean = {log.info("onHandover");true}
 
+    override def refreshReference():Boolean = true
+
     override def appReceive: PartialFunction[Any, Unit] = {
       case "echo" => sender ! "echoAck"
     }

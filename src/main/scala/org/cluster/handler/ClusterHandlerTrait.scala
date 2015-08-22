@@ -58,7 +58,7 @@ trait ClusterHandlerTrait extends FSM[CHState,HashMap[String,List[String]]] {
 
   whenUnhandled {
     case Event(SigRestart(large),_) => { restartClusterHandler(large); stay()}
-    case Event(e,s) => log.warning("Unexpected messages"); stay()
+    case Event(e,s) => log.warning("Unexpected messages "); stay()
   }
 
   onTransition  {
@@ -69,7 +69,7 @@ trait ClusterHandlerTrait extends FSM[CHState,HashMap[String,List[String]]] {
         self ! SigSupplySoftwareResult(success)
       } catch {
         case e:Exception => {
-          log.error("Exception supplying software",e)
+          log.error("Exception supplying software {}",e)
           centralActor ! SigSupplySoftwareResult(false)
           self ! SigSupplySoftwareResult(false)
         }
