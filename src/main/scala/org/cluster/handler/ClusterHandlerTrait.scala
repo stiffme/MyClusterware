@@ -1,23 +1,26 @@
 package org.cluster.handler
 
 import akka.actor.{ActorRef, Actor, FSM}
+import akka.contrib.pattern.ClusterSingletonProxy
 import scala.concurrent.duration._
 import scala.collection.immutable.HashMap
 
 /**
  * Created by stiffme on 2015/8/19.
  */
-
+case class DeployInfo(name:String,jars:Set[String])
 //handler to central to register itself
 case class SigRegisterClusterHandler(clusterId:Int)
 //central to ack cluster register
 case object SigRegisterClusterHandlerAck
 //initial supply or upgrade software bundle name , List of jar files
-case class SigSupplySoftware(software: HashMap[String,List[String]])
+case class SigSupplySoftware(software: Seq[DeployInfo])
 //initial supply/upgrade result
 case class SigSupplySoftwareResult(success:Boolean)
 //large or small restart
 case class SigRestart(large:Boolean)
+
+case class SigHeartBeat(clusterId:Int)
 
 sealed trait CHState
 case object Uninitialized extends CHState
@@ -25,19 +28,21 @@ case object Idle extends CHState
 case object Busy extends CHState
 
 
-trait ClusterHandlerTrait extends FSM[CHState,HashMap[String,List[String]]] {
-  var centralActor:ActorRef = _
+trait ClusterHandlerTrait extends FSM[CHState,Seq[DeployInfo]] {
+  val clusterCentral = context.system.actorOf(ClusterSingletonProxy.props(
+    singletonPath = "/user/singleton/central",
+    role = None))
 
 
   def registerSelf
+  def onHeartbeat
   def restartClusterHandler(large:Boolean)
-  def supplySoftware(software:HashMap[String,List[String]]):Boolean
+  def supplySoftware(software:Seq[DeployInfo]):Boolean
 
   startWith(Uninitialized,null)
 
   when(Uninitialized,stateTimeout = 1 second) {
     case Event(SigRegisterClusterHandlerAck,_) => {
-      centralActor = sender()
       goto(Idle)
     }
     case Event(StateTimeout,_) => {
@@ -46,13 +51,26 @@ trait ClusterHandlerTrait extends FSM[CHState,HashMap[String,List[String]]] {
     }
   }
 
-  when(Idle)  {
-    case Event(SigSupplySoftware(software),_) =>  goto(Busy) using software
-    //case Event(SigRestart(large),_) => { restartClusterHandler(large); stay()}
+  when(Idle,stateTimeout = 2 second)  {
+    case Event(SigSupplySoftware(software),_) =>{
+      try{
+        val success = supplySoftware(software)
+        sender ! SigSupplySoftwareResult(success)
+        self ! SigSupplySoftwareResult(success)
+      } catch {
+        case e:Exception => {
+          log.error("Exception supplying software {}",e)
+          sender ! SigSupplySoftwareResult(false)
+          self ! SigSupplySoftwareResult(false)
+        }
+      }
+      goto(Busy)
+    }
+    case Event(StateTimeout,_) => onHeartbeat; stay()
   }
 
   when(Busy)  {
-    case Event(SigSupplySoftwareResult(success), _ ) => goto(Idle) using HashMap.empty[String,List[String]]
+    case Event(SigSupplySoftwareResult(success), _ ) => goto(Idle) using Seq.empty[DeployInfo]
     //case Event(SigRestart(large),_) => { restartClusterHandler(large); goto(Idle)}
   }
 
@@ -63,17 +81,7 @@ trait ClusterHandlerTrait extends FSM[CHState,HashMap[String,List[String]]] {
 
   onTransition  {
     case Idle -> Busy => {
-      try{
-        val success = supplySoftware(nextStateData)
-        centralActor ! SigSupplySoftwareResult(success)
-        self ! SigSupplySoftwareResult(success)
-      } catch {
-        case e:Exception => {
-          log.error("Exception supplying software {}",e)
-          centralActor ! SigSupplySoftwareResult(false)
-          self ! SigSupplySoftwareResult(false)
-        }
-      }
+
     }
   }
 

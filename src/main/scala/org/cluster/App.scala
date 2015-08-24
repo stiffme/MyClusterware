@@ -3,7 +3,7 @@ package org.cluster
 import akka.actor.{PoisonPill, Props, ActorSystem}
 import akka.contrib.pattern.{ClusterSingletonProxy, ClusterSingletonManager}
 import com.typesafe.config.ConfigFactory
-import org.cluster.central.ClusterCentral
+import org.cluster.central.{SupplyUpgradeSw, ClusterCentral}
 import org.cluster.handler.ClusterHandlerImpl
 
 /**
@@ -37,11 +37,9 @@ object App {
     val clusterCentral = actorSystem.actorOf(ClusterSingletonProxy.props(
       singletonPath = "/user/singleton/central",
       role = None))
-    clusterCentral ! "1"
     Thread.sleep(8000)
-    clusterCentral ! "2"
-    Thread.sleep(8000)
-    clusterCentral ! "1"
+    clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
+
   }
 
 }

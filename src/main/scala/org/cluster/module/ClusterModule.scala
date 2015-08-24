@@ -1,6 +1,7 @@
 package org.cluster.module
 
 import akka.actor.{ActorLogging, ActorRef, Actor, FSM}
+import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
 /**
  * Created by stiffme on 2015/8/20.
@@ -39,7 +40,7 @@ case class SigCMHandover(target:ActorRef)
 case class SigCMHandoverResult(success:Boolean)
 case object SigCMTerminate
 case class SigCMTerminateResult(success:Boolean)
-case object SigCMRefreshReference
+case class SigCMRefreshReference(name:String,ref:ActorRef)
 case class SigCMRefreshReferenceResult(success:Boolean)
 private case object SigCMFaulty
 
@@ -49,7 +50,7 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
   def onActivate():Boolean
   def onHandover(target:ActorRef):Boolean
   def onTerminate():Boolean
-  def refreshReference():Boolean
+  def refreshReference(name:String,actor:ActorRef):Boolean
   def appReceive:PartialFunction[Any,Unit]
 
   //initial state: Uninitialized,CMEmpty
@@ -86,9 +87,9 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
       val origin = sender()
       goto(Terminated) using CMDataSender(origin)
     }
-    case Event(SigCMRefreshReference, _) => {
+    case Event(SigCMRefreshReference(name,actor), _) => {
       try{
-        val success = refreshReference()
+        val success = refreshReference(name,actor)
         sender ! SigCMRefreshReferenceResult(success)
         stay()
       } catch {

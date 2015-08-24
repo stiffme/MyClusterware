@@ -30,9 +30,13 @@ with BeforeAndAfterAll{
       log.info("Restarting cluster node with type {}",large)
     }
 
-    override def supplySoftware(software: HashMap[String, List[String]]): Boolean = {
+    override def supplySoftware(software: Seq[DeployInfo]): Boolean = {
       log.info("supplying software")
       true
+    }
+
+    override def onHeartbeat: Unit = {
+      clusterCentral ! SigHeartBeat(0)
     }
   }
 
@@ -48,13 +52,13 @@ with BeforeAndAfterAll{
     val testProbe = new TestProbe(system)
     val successClusterHandler = system.actorOf(Props(new TestClusterHandler(testProbe.ref)))
     EventFilter.warning("Unexpected messages") intercept {
-      successClusterHandler ! SigSupplySoftware(HashMap.empty[String,List[String]])
+      successClusterHandler ! SigSupplySoftware(Seq.empty[DeployInfo])
     }
     testProbe.expectMsg(SigRegisterClusterHandler(0))
     testProbe.send(successClusterHandler,SigRegisterClusterHandlerAck)
 
     EventFilter.warning("supplying software") intercept {
-      testProbe.send(successClusterHandler , SigSupplySoftware(HashMap.empty[String,List[String]]) )
+      testProbe.send(successClusterHandler , SigSupplySoftware(Seq.empty[DeployInfo]) )
       testProbe.expectMsg(SigSupplySoftwareResult(true))
     }
 

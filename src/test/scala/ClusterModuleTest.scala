@@ -3,6 +3,7 @@ import akka.testkit.{EventFilter, ImplicitSender, TestKit}
 import com.typesafe.config.ConfigFactory
 import org.cluster.module._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
 /**
  * Created by esipeng on 8/21/2015.
@@ -28,7 +29,7 @@ class ClusterModuleTest (_system:ActorSystem) extends TestKit(_system)
 
     override def onHandover(target: ActorRef): Boolean = {log.info("onHandover");true}
 
-    override def refreshReference():Boolean = true
+    override def refreshReference(name:String,actor:ActorRef):Boolean = true
 
     override def appReceive: PartialFunction[Any, Unit] = {
       case "echo" => sender ! "echoAck"
