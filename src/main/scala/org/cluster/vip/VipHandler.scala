@@ -113,7 +113,7 @@ class VipHandler(prefixIp:String,baseIp:Int,master:Boolean,vip:String,conf:Strin
           s"""
             |weight 1
             |           TCP_CHECK {
-            |			 connect_port $vc
+            |			 connect_port $vp
             |			 connect_timeout 4
             |			 }
             |        }
