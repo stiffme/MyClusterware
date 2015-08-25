@@ -2,14 +2,14 @@ package org.cluster.vip
 
 import java.io.{FileWriter, File}
 
-import akka.actor.{ActorLogging, Actor}
+import akka.actor.{Props, ActorLogging, Actor}
 import akka.contrib.pattern.ClusterSingletonProxy
 import org.cluster.central.{SigVipAskAck, SigVipAsk}
 import scala.concurrent.duration._
 /**
  * Created by stiffme on 2015/8/24.
  */
-class VipHandler(val prefixIp:String,val baseIp:Int,master:Boolean,vip:String,conf:String) extends Actor with ActorLogging{
+class VipHandler(prefixIp:String,baseIp:Int,master:Boolean,vip:String,conf:String) extends Actor with ActorLogging{
   val clusterCentral = context.system.actorOf(ClusterSingletonProxy.props(
     singletonPath = "/user/singleton/central",
     role = None))
@@ -53,7 +53,7 @@ class VipHandler(val prefixIp:String,val baseIp:Int,master:Boolean,vip:String,co
 
   private def generateConf():String = {
     val sb = new StringBuilder
-    sb ++=
+    sb.append(
       """
         |global_defs {
         |        router_id       KEEPALIVED_LVS
@@ -66,26 +66,26 @@ class VipHandler(val prefixIp:String,val baseIp:Int,master:Boolean,vip:String,co
         |}
         |
         |vrrp_instance KEEPALIVED_LVS_WEB {
-      """.stripMargin
+      """.stripMargin)
     sb.append("\n")
     if(master)
-      sb.append("state MASTER\n")
+      sb.append("state MASTER\npriority 150\n")
     else
-      sb.append("state SLAVE\n")
-    sb ++=
+      sb.append("state SLAVE\npriority 50\n")
+
+    sb.append(
       """
         |interface eth0
         |        lvs_sync_daemon_interface eth0
         |        garp_master_delay 5
         |        virtual_router_id 100
-        |        priority {PRIORITY}
         |        advert_int 1
         |        authentication {
         |                auth_type PASS
         |                auth_pass 111111
         |        }
         |        virtual_ipaddress {
-      """.stripMargin
+      """.stripMargin)
 
     sb.append(vip)
     sb.append("\n")
@@ -110,10 +110,10 @@ class VipHandler(val prefixIp:String,val baseIp:Int,master:Boolean,vip:String,co
       for(vc <- openedCluster)  {
         sb.append(s"real_server $prefixIp${vc+baseIp} $vp {")
         sb.append(
-          """
+          s"""
             |weight 1
             |           TCP_CHECK {
-            |			 connect_port 80
+            |			 connect_port $vc
             |			 connect_timeout 4
             |			 }
             |        }
@@ -124,5 +124,12 @@ class VipHandler(val prefixIp:String,val baseIp:Int,master:Boolean,vip:String,co
     }
     log.info("{}",sb.toString())
     sb.toString()
+  }
+}
+
+
+object VipHandler {
+  def props(prefixIp:String,baseIp:Int,master:Boolean,vip:String,conf:String):Props = {
+    Props(new VipHandler(prefixIp,baseIp,master,vip,conf))
   }
 }

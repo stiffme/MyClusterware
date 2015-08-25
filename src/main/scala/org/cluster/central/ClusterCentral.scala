@@ -81,18 +81,8 @@ class ClusterCentral extends FSM[CCState,CCData]{
       }
       stay()
     }
-    case Event(SigOpenPort(p),_) => {
-      if(clusterOpenPorts.contains(p) == false) {
-        clusterOpenPorts += p
-        SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
-      }
 
-      stay()
-    }
-    case Event(SigVipAsk,_) => {
-      sender ! SigVipAskAck(cluster = clusterHandlers.keySet.toSet,ports = clusterOpenPorts.toSet)
-      stay()
-    }
+
     case Event(SupplyInitialSw(clusterId),Empty) => {
       calculateSwToCluster(Map.empty[String,SoftwareInfo],clusterModules.toMap) match {
         case None => {log.error("Nothing to be added to initial SW"); stay()}
@@ -189,6 +179,19 @@ class ClusterCentral extends FSM[CCState,CCData]{
 
       stay()
 
+    }
+    case Event(SigOpenPort(p),_) => {
+      if(clusterOpenPorts.contains(p) == false) {
+        clusterOpenPorts += p
+        SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
+      }
+
+      stay()
+    }
+
+    case Event(SigVipAsk,_) => {
+      sender ! SigVipAskAck(cluster = clusterHandlers.keySet.toSet,ports = clusterOpenPorts.toSet)
+      stay()
     }
   }
 
