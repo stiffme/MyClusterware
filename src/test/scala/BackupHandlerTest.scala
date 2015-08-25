@@ -26,7 +26,7 @@ with BeforeAndAfterAll{
     val tempFileName = """G:\scalaproj\temp.xml"""
     result match {
       case Some(sws) => {
-        SwBackupHandler.saveBackup(tempFileName,sws)
+        SwBackupHandler.saveBackup(tempFileName,sws,Set(9999))
         for(entry <- sws) {
           assert("dummy1".equals(entry._1))
           val swInfo = entry._2

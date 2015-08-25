@@ -38,9 +38,28 @@ object SwBackupHandler {
     }
   }
 
-  def saveBackup(backFile:String,sws:HashMap[String,SoftwareInfo]) = {
+  def readPortBackup(backFile:String):Option[collection.mutable.Set[Int]] = {
+    try{
+      val ret = collection.mutable.Set.empty[Int]
+      val backupXml = XML.load(backFile)
+      for( cm <- backupXml \ "Port") {
+        val name = (cm \ "@port").toString.toInt
+
+        ret += name
+      }
+      Some(ret)
+    }catch {
+      case e:Exception => {
+        log.error("Exception reading port back files, {}" ,e)
+        None
+      }
+    }
+  }
+
+  def saveBackup(backFile:String,sws:HashMap[String,SoftwareInfo],ports:Set[Int]) = {
     val backInfo = <ClusterModules>
       { sws.map(t => makeOneCM(t._2))  }
+      { ports.map(t => makeOnePort(t))  }
     </ClusterModules>
 
     XML.save(backFile,backInfo)
@@ -55,6 +74,11 @@ object SwBackupHandler {
     </ClusterModule>
 
     val fin = ret % Attribute(None,"name",Text(info.name),Null) %  Attribute(None,"version",Text(info.version.toString),Null)
+    fin
+  }
+  def makeOnePort(port:Int):Elem = {
+    val ret = <Port/>
+    val fin = ret % Attribute(None,"port",Text(port.toString),Null)
     fin
   }
 

@@ -3,6 +3,7 @@ package org.cluster.central
 import java.io._
 import akka.util.Timeout
 
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.actor.{FSM, ActorRef, ActorLogging, Actor}
@@ -28,6 +29,10 @@ case class SupplyUpgradeSw(path:String)
  case object Empty extends CCData
  case class UpgradeTarget(targets:Set[ActorRef],deps:Seq[DeployInfo],initial:Boolean,sws:Map[String,SoftwareInfo]) extends CCData
 
+case object SigVipAsk
+case class SigVipAskAck(cluster:Set[Int],ports:Set[Int])
+case class SigOpenPort(port:Int)
+
 class ClusterCentral extends FSM[CCState,CCData]{
   final val LoadingDir = System.getProperty("org.cluster.LoadingDir")
   final val DefaultBackup = LoadingDir + File.separator + "backup.xml"
@@ -35,6 +40,15 @@ class ClusterCentral extends FSM[CCState,CCData]{
   log.info("Cluster Handler start with backup {} and lib dir {}",DefaultBackup,AppLibDir)
 
   val clusterHandlers = new collection.mutable.HashMap[Int,ActorRef]()
+  //val clusterOpenPorts = new mutable.HashSet[Int]()
+
+  val clusterOpenPorts:mutable.Set[Int] = SwBackupHandler.readPortBackup(DefaultBackup) match {
+    case Some(s) =>  s
+    case None => {
+      log.info("Can't load current port backup,")
+      scala.collection.mutable.Set.empty[Int]
+    }
+  }
 
   val clusterModules = SwBackupHandler.readBackup(DefaultBackup) match {
     case Some(s:scala.collection.mutable.HashMap[String,SoftwareInfo]) =>  s
@@ -65,6 +79,18 @@ class ClusterCentral extends FSM[CCState,CCData]{
 
         context.system.scheduler.scheduleOnce(2 second,self,SupplyInitialSw(clusterId))
       }
+      stay()
+    }
+    case Event(SigOpenPort(p),_) => {
+      if(clusterOpenPorts.contains(p) == false) {
+        clusterOpenPorts += p
+        SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
+      }
+
+      stay()
+    }
+    case Event(SigVipAsk,_) => {
+      sender ! SigVipAskAck(cluster = clusterHandlers.keySet.toSet,ports = clusterOpenPorts.toSet)
       stay()
     }
     case Event(SupplyInitialSw(clusterId),Empty) => {
@@ -134,7 +160,7 @@ class ClusterCentral extends FSM[CCState,CCData]{
           //save the sw into backup
           log.info("Saving backup with the new SW")
           clusterModules ++= sws
-          SwBackupHandler.saveBackup(DefaultBackup,clusterModules)
+          SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
         }
         goto(Idle) using Empty
       }
