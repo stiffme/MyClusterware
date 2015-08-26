@@ -93,7 +93,7 @@ object App {
 
     } else  {
       //start cluster handler
-      actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId))
+      actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId),s"ClusterHandler_$clusterId")
 
 
       //===============For testing purpose=========================
