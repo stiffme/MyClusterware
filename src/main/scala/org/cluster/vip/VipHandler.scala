@@ -9,7 +9,11 @@ import scala.concurrent.duration._
 /**
  * Created by stiffme on 2015/8/24.
  */
-class VipHandler(prefixIp:String,baseIp:Int,master:Boolean,vip:String,conf:String) extends Actor with ActorLogging{
+class VipHandler(firstIp:String,master:Boolean,vip:String) extends Actor with ActorLogging{
+  val conf = System.getProperty("org.cluster.LoadingDir") + File.separator + "vip.conf"
+  val regex = """([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)""".r
+  val regex(prefixIp,baseIpStr) = firstIp
+  val baseIp = baseIpStr.toInt
   val clusterCentral = context.system.actorOf(ClusterSingletonProxy.props(
     singletonPath = "/user/singleton/central",
     role = None))
@@ -129,7 +133,7 @@ class VipHandler(prefixIp:String,baseIp:Int,master:Boolean,vip:String,conf:Strin
 
 
 object VipHandler {
-  def props(prefixIp:String,baseIp:Int,master:Boolean,vip:String,conf:String):Props = {
-    Props(new VipHandler(prefixIp,baseIp,master,vip,conf))
+  def props(firstIp:String,master:Boolean,vip:String):Props = {
+    Props(new VipHandler(firstIp,master,vip))
   }
 }

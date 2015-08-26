@@ -25,7 +25,7 @@ object App {
 
     val actorSystem = ActorSystem(actorName,config)
     val clusterHandler = actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],1),s"ClusterHandler_$port")
-    val vip = actorSystem.actorOf(VipHandler.props("192.168.1.",200,true,"192.168.1.199","""G:\scalaproj\ClusterwareWorkDir\vip.conf"""))
+    val vip = actorSystem.actorOf(VipHandler.props("192.168.1.200",true,"192.168.1.199"))
     actorSystem.actorOf(ClusterSingletonManager.props(
     singletonProps = Props[ClusterCentral],
     singletonName = "central",
@@ -39,7 +39,7 @@ object App {
       singletonPath = "/user/singleton/central",
       role = None))
     Thread.sleep(8000)
-    clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
+    //clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
     clusterCentral ! SigOpenPort(18080)
   }
 
