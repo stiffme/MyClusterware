@@ -20,10 +20,9 @@ object App {
    */
   val actorName = "ClusterSystem"
   final val log = LoggerFactory.getLogger(actorName)
-  var clsuterId:Int = _
   var firstIp:Int = _
   var actorSystem:ActorSystem = null
-  var clusterId:Int = _
+  var clusterId:Int = -1
 
   def main(args : Array[String]) {
     if(args.length != 1)  {
@@ -33,25 +32,35 @@ object App {
       if(loadingDir == null || loadingDir.length == 0)  {
         log.error("org.cluster.LoadingDir is not defined")
         return
+      } else{
+        log.info("org.cluster.LoadingDir is {}",loadingDir)
       }
       val firstIp = System.getProperty("org.cluster.FirstIp")
       if(firstIp == null || firstIp.length == 0)  {
         log.error("org.cluster.FirstIp is not defined")
         return
       }
+      else{
+        log.info("org.cluster.FirstIp is {}",firstIp)
+      }
       val vip = System.getProperty("org.cluster.Vip")
       if(vip == null || vip.length == 0)  {
         log.error("org.cluster.Vip is not defined")
         return
+      }
+      else{
+        log.info("org.cluster.vip is {}",vip)
       }
       startNode(args(0).toInt)
     }
 
   }
 
-  def startNode(clusterId:Int) = {
-    this.clusterId = clusterId
-    val currentClusterIp = VipHandler.getClusterIp(clsuterId)
+  def startNode(c:Int) = {
+    this.clusterId = c
+
+    val currentClusterIp = VipHandler.getClusterIp(clusterId)
+    log.info("Cluster id is {}, use {}",clusterId,currentClusterIp)
     val currentRole = if(clusterId <= 1) "SC" else "PL"
     val master = clusterId == 0
     val firstSeed = VipHandler.getClusterIp(0)

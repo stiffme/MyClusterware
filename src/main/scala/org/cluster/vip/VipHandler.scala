@@ -143,6 +143,7 @@ object VipHandler {
     val regex = """([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)""".r
     val firstIp = System.getProperty("org.cluster.FirstIp")
     val regex(prefixIp,baseIpStr) = firstIp
+
     val baseIp = baseIpStr.toInt
     s"${prefixIp}${baseIp+clusterId}"
   }

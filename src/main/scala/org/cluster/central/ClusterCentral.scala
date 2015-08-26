@@ -1,7 +1,11 @@
 package org.cluster.central
 
 import java.io._
+import java.lang.management.ManagementFactory
+import javax.management.{ObjectName, MBeanServer}
 import akka.util.Timeout
+import org.cluster.central.jmx.ClusterMBean
+import org.jminix.console.tool.StandaloneMiniConsole
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -11,7 +15,7 @@ import org.cluster.ClusterConstants
 import org.cluster.handler._
 import scala.collection.immutable.HashMap
 import akka.pattern.ask
-
+import com.sun.jmx.remote.util
 /**
  * Created by stiffme on 2015/8/19.
  */
@@ -33,11 +37,15 @@ case object SigVipAsk
 case class SigVipAskAck(cluster:Set[Int],ports:Set[Int])
 case class SigOpenPort(port:Int)
 
-class ClusterCentral extends FSM[CCState,CCData]{
+class ClusterCentral extends ClusterMBean with FSM[CCState,CCData]{
   final val LoadingDir = System.getProperty("org.cluster.LoadingDir")
   final val DefaultBackup = LoadingDir + File.separator + "backup.xml"
   final val AppLibDir = LoadingDir + File.separator + "AppLib"
   log.info("Cluster Handler start with backup {} and lib dir {}",DefaultBackup,AppLibDir)
+
+  //for JMX
+  val obName = new ObjectName("org.cluster:type=Cluster")
+  var standaloneMiniConsole:StandaloneMiniConsole = null
 
   val clusterHandlers = new collection.mutable.HashMap[Int,ActorRef]()
   //val clusterOpenPorts = new mutable.HashSet[Int]()
@@ -216,6 +224,21 @@ class ClusterCentral extends FSM[CCState,CCData]{
 
   }*/
 
+  override def preStart() = {
+    super.preStart()
+    val mbs = ManagementFactory.getPlatformMBeanServer
+
+    mbs.registerMBean(this,obName)
+    standaloneMiniConsole = new StandaloneMiniConsole(8888)
+
+  }
+
+  override def postStop() ={
+    val mbs = ManagementFactory.getPlatformMBeanServer
+    mbs.unregisterMBean(obName)
+    standaloneMiniConsole.shutdown()
+    super.postStop()
+  }
   private def calculateSwToCluster(current:Map[String,SoftwareInfo], add:Map[String,SoftwareInfo]):Option[Seq[DeployInfo]] = {
     val newSwOption = SwBackupHandler.resolveDifference(current,add)
     //val targetCluster= clusterHandlers(clusterId)
@@ -309,6 +332,10 @@ class ClusterCentral extends FSM[CCState,CCData]{
 
     }
     ret
+  }
+
+  override def jmxSupplySoftware(path: String): Unit = {
+    self ! SupplyUpgradeSw(path)
   }
 }
 
