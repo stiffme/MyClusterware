@@ -85,7 +85,7 @@ object App {
 
       val clusterCentral = actorSystem.actorOf(ClusterSingletonProxy.props(
         singletonPath = "/user/singleton/central",
-        role = None))
+        role = Some("SC")))
       Thread.sleep(8000)
       //clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
       clusterCentral ! SigOpenPort(18080)
@@ -101,7 +101,7 @@ object App {
 
       val clusterCentral = actorSystem.actorOf(ClusterSingletonProxy.props(
         singletonPath = "/user/singleton/central",
-        role = None))
+        role = Some("SC")))
       Thread.sleep(8000)
       //clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
       clusterCentral ! SigOpenPort(18080)

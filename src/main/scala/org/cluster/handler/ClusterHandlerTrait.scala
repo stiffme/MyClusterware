@@ -31,7 +31,7 @@ case object Busy extends CHState
 trait ClusterHandlerTrait extends FSM[CHState,Seq[DeployInfo]] {
   val clusterCentral = context.system.actorOf(ClusterSingletonProxy.props(
     singletonPath = "/user/singleton/central",
-    role = None))
+    role = Some("SC")))
 
 
   def registerSelf

@@ -8,13 +8,9 @@ import org.cluster.App
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.pattern.ask
-import scala.collection.JavaConversions._
 import akka.actor._
 import akka.cluster.Cluster
-import akka.contrib.pattern.ClusterSingletonProxy
 import org.cluster.module._
-
-import scala.collection.immutable.HashMap
 import scala.collection.mutable
 
 /**

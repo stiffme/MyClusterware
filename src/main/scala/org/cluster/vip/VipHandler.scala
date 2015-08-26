@@ -14,7 +14,7 @@ class VipHandler(master:Boolean) extends Actor with ActorLogging{
   val vip = System.getProperty("org.cluster.Vip")
   val clusterCentral = context.system.actorOf(ClusterSingletonProxy.props(
     singletonPath = "/user/singleton/central",
-    role = None))
+    role = Some("SC")))
 
   val keepalivedRefreshScript = System.getProperty("org.cluster.LoadingDir") + File.separator + "startKeepalived.sh"
   implicit val execution = context.system.dispatcher
