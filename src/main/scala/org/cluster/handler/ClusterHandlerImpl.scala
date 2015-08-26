@@ -3,6 +3,7 @@ package org.cluster.handler
 import java.io.File
 import java.net.{URL, URLClassLoader}
 import akka.util.Timeout
+import org.cluster.App
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -30,7 +31,10 @@ class ClusterHandlerImpl(clusterId:Int) extends ClusterHandlerTrait{
   }
 
   override def restartClusterHandler(large: Boolean): Unit = {
-
+    if(large)
+      System.exit(0)
+    else
+      App.restart()
   }
 
   override def supplySoftware(software: Seq[DeployInfo]): Boolean = {
@@ -52,7 +56,7 @@ class ClusterHandlerImpl(clusterId:Int) extends ClusterHandlerTrait{
     val mainActor = context.actorOf(Props(mainClazz))
 
     //val initFuture = mainActor.ask(SigCMInit).mapTo[SigCMInitResult]
-    val initResult = Await.result(mainActor.ask(SigCMInit).mapTo[SigCMInitResult],timeout.duration)
+    val initResult = Await.result(mainActor.ask(SigCMInit(clusterModules.toMap)).mapTo[SigCMInitResult],timeout.duration)
     if(initResult.success == false) return false
 
     val activateResult = Await.result(mainActor.ask(SigCMActivate).mapTo[SigCMActivateResult], timeout.duration)
@@ -71,7 +75,7 @@ class ClusterHandlerImpl(clusterId:Int) extends ClusterHandlerTrait{
     val oldActor = clusterModules(name)
 
     //init new actor
-    val initResult = Await.result(mainActor.ask(SigCMInit).mapTo[SigCMInitResult],timeout.duration)
+    val initResult = Await.result(mainActor.ask(SigCMInit(clusterModules.toMap)).mapTo[SigCMInitResult],timeout.duration)
     if(initResult.success == false) return false
     //handover
     val handResult = Await.result(oldActor.ask(SigCMHandover(mainActor)).mapTo[SigCMHandoverResult],timeout.duration)

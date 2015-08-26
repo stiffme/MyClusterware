@@ -232,15 +232,18 @@ class ClusterCentral extends FSM[CCState,CCData]{
   }
 
   private def orderClusterRestart(large:Boolean) = {
-
+    for( t <- clusterHandlers)
+      orderSingleNodeRestart(t._2,large)
   }
 
   private def orderSingleNodeRestart(clusterId:Int,large:Boolean): Unit ={
-
+    orderSingleNodeRestart(clusterHandlers(clusterId),large)
   }
 
   private def orderSingleNodeRestart(clusterHandler:ActorRef,large:Boolean): Unit ={
-
+    if(clusterHandler != null)  {
+      clusterHandler ! SigRestart(large)
+    }
   }
 
   /**

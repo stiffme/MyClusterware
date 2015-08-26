@@ -27,12 +27,13 @@ case object Faulty extends ClusterModuleState
 //data
 sealed trait ClusterModuleData
 case class CMDataSender(sender:ActorRef) extends ClusterModuleData
+case class CMInitData(sender:ActorRef,services:Map[String,ActorRef]) extends ClusterModuleData
 case class CMDataHandover(sender:ActorRef,target:ActorRef) extends ClusterModuleData
 case object CMDataEmpty extends ClusterModuleData
 
 //case object CMEmpty extends ClusterModuleData
 //signal
-case object SigCMInit
+case class SigCMInit(services:Map[String,ActorRef])
 case class SigCMInitResult(success:Boolean)
 case object SigCMActivate
 case class SigCMActivateResult(success:Boolean)
@@ -46,7 +47,7 @@ private case object SigCMFaulty
 
 trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with ActorLogging{
   val moduleName:String
-  def onInitialize():Boolean
+  def onInitialize(services:Map[String,ActorRef]):Boolean
   def onActivate():Boolean
   def onHandover(target:ActorRef):Boolean
   def onTerminate():Boolean
@@ -57,9 +58,9 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
   startWith(Uninitialized,CMDataEmpty)
 
   when(Uninitialized) {
-    case Event(SigCMInit,CMDataEmpty) => {
+    case Event(SigCMInit(services),CMDataEmpty) => {
       val origin = sender()
-      goto(Initialized) using CMDataSender(origin)
+      goto(Initialized) using CMInitData(origin,services)
     }
   }
 
@@ -147,9 +148,9 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
   onTransition  {
     case Uninitialized -> Initialized => {
       nextStateData match {
-        case CMDataSender(sender) => {
+        case CMInitData(sender,services) => {
           try {
-            val success = onInitialize()
+            val success = onInitialize(services)
             sender ! SigCMInitResult(success)
             self ! SigCMInitResult(success)
           } catch {

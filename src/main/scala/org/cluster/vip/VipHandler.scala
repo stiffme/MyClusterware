@@ -9,18 +9,18 @@ import scala.concurrent.duration._
 /**
  * Created by stiffme on 2015/8/24.
  */
-class VipHandler(firstIp:String,master:Boolean,vip:String) extends Actor with ActorLogging{
+class VipHandler(master:Boolean) extends Actor with ActorLogging{
   val conf = System.getProperty("org.cluster.LoadingDir") + File.separator + "vip.conf"
-  val regex = """([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)""".r
-  val regex(prefixIp,baseIpStr) = firstIp
-  val baseIp = baseIpStr.toInt
+  val vip = System.getProperty("org.cluster.Vip")
   val clusterCentral = context.system.actorOf(ClusterSingletonProxy.props(
     singletonPath = "/user/singleton/central",
     role = None))
+
+  val keepalivedRefreshScript = System.getProperty("org.cluster.LoadingDir") + File.separator + "startKeepalived.sh"
   implicit val execution = context.system.dispatcher
   context.system.scheduler.schedule(2 second,2 second,self,"Timeout")
 
-  var keepAlivedProcess = null
+  //var keepAlivedProcess = null
   val openedPorts = collection.mutable.Set.empty[Int]
   val openedCluster = collection.mutable.Set.empty[Int]
 
@@ -47,6 +47,8 @@ class VipHandler(firstIp:String,master:Boolean,vip:String) extends Actor with Ac
         file.write(generateConf())
         file.flush()
         file.close()
+        val runtime = Runtime.getRuntime
+        runtime.exec(Array[String](keepalivedRefreshScript,conf))
       } catch {
         case e: Exception => {
           log.error("Exception generating keepalived conf, {}", e)
@@ -112,7 +114,7 @@ class VipHandler(firstIp:String,master:Boolean,vip:String) extends Actor with Ac
           |        protocol TCP
         """.stripMargin)
       for(vc <- openedCluster)  {
-        sb.append(s"real_server $prefixIp${vc+baseIp} $vp {")
+        sb.append(s"real_server ${VipHandler.getClusterIp(vc)} $vp {")
         sb.append(
           s"""
             |weight 1
@@ -133,7 +135,15 @@ class VipHandler(firstIp:String,master:Boolean,vip:String) extends Actor with Ac
 
 
 object VipHandler {
-  def props(firstIp:String,master:Boolean,vip:String):Props = {
-    Props(new VipHandler(firstIp,master,vip))
+  def props(master:Boolean):Props = {
+    Props(new VipHandler(master))
+  }
+
+  def getClusterIp(clusterId:Int):String = {
+    val regex = """([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)""".r
+    val firstIp = System.getProperty("org.cluster.FirstIp")
+    val regex(prefixIp,baseIpStr) = firstIp
+    val baseIp = baseIpStr.toInt
+    s"${prefixIp}${baseIp+clusterId}"
   }
 }

@@ -23,7 +23,7 @@ class ClusterModuleTest (_system:ActorSystem) extends TestKit(_system)
   class SuccessfulClusterModule extends ClusterModule {
     override val moduleName: String = "SuccessfulClusterModule"
 
-    override def onInitialize(): Boolean = {log.info("onInitialize");true}
+    override def onInitialize(services:Map[String,ActorRef]): Boolean = {log.info("onInitialize");true}
 
     override def onActivate(): Boolean = {log.info("onActivate");true}
 
