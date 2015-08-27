@@ -4,7 +4,7 @@ import java.io._
 import java.lang.management.ManagementFactory
 import javax.management.{ObjectName, MBeanServer}
 import akka.util.Timeout
-import org.cluster.central.jmx.ClusterMBean
+import org.cluster.central.jmx._
 import org.jminix.console.tool.StandaloneMiniConsole
 
 import scala.collection.mutable
@@ -37,7 +37,7 @@ case object SigVipAsk
 case class SigVipAskAck(cluster:Set[Int],ports:Set[Int])
 case class SigOpenPort(port:Int)
 
-class ClusterCentral extends ClusterMBean with FSM[CCState,CCData]{
+class ClusterCentral extends  FSM[CCState,CCData]{
   final val LoadingDir = System.getProperty("org.cluster.LoadingDir")
   final val DefaultBackup = LoadingDir + File.separator + "backup.xml"
   final val AppLibDir = LoadingDir + File.separator + "AppLib"
@@ -228,7 +228,7 @@ class ClusterCentral extends ClusterMBean with FSM[CCState,CCData]{
     super.preStart()
     val mbs = ManagementFactory.getPlatformMBeanServer
 
-    mbs.registerMBean(this,obName)
+    mbs.registerMBean(new JMXCluster(self),obName)
     standaloneMiniConsole = new StandaloneMiniConsole(8888)
 
   }
@@ -334,9 +334,7 @@ class ClusterCentral extends ClusterMBean with FSM[CCState,CCData]{
     ret
   }
 
-  override def jmxSupplySoftware(path: String): Unit = {
-    self ! SupplyUpgradeSw(path)
-  }
+
 }
 
 class AppFileFilter(name_version:String) extends FileFilter  {
