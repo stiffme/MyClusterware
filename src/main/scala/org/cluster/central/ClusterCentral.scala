@@ -2,20 +2,15 @@ package org.cluster.central
 
 import java.io._
 import java.lang.management.ManagementFactory
-import javax.management.{ObjectName, MBeanServer}
-import akka.util.Timeout
+import javax.management.{Notification, ObjectName}
+
+import akka.actor.{ActorRef, FSM}
 import org.cluster.central.jmx._
+import org.cluster.handler._
 import org.jminix.console.tool.StandaloneMiniConsole
 
 import scala.collection.mutable
-import scala.concurrent.Await
 import scala.concurrent.duration._
-import akka.actor.{FSM, ActorRef, ActorLogging, Actor}
-import org.cluster.ClusterConstants
-import org.cluster.handler._
-import scala.collection.immutable.HashMap
-import akka.pattern.ask
-import com.sun.jmx.remote.util
 /**
  * Created by stiffme on 2015/8/19.
  */
@@ -41,19 +36,22 @@ class ClusterCentral extends  FSM[CCState,CCData]{
   final val LoadingDir = System.getProperty("org.cluster.LoadingDir")
   final val DefaultBackup = LoadingDir + File.separator + "backup.xml"
   final val AppLibDir = LoadingDir + File.separator + "AppLib"
+  final val NotifError = "ERROR"
+  final val NotifInfo = "INFO"
+  //for JMX
+  val jmxObName = new ObjectName("org.cluster:type=Cluster")
+  val jmx = new ClusterCentralJmx(self)
+  var standalone:StandaloneMiniConsole = null
+
   log.info("Cluster Handler start with backup {} and lib dir {}",DefaultBackup,AppLibDir)
 
-  //for JMX
-  val obName = new ObjectName("org.cluster:type=Cluster")
-  var standaloneMiniConsole:StandaloneMiniConsole = null
-
   val clusterHandlers = new collection.mutable.HashMap[Int,ActorRef]()
-  //val clusterOpenPorts = new mutable.HashSet[Int]()
 
   val clusterOpenPorts:mutable.Set[Int] = SwBackupHandler.readPortBackup(DefaultBackup) match {
     case Some(s) =>  s
     case None => {
       log.info("Can't load current port backup,")
+      sendNotification(NotifInfo,"Can't load current port backup,using empty")
       scala.collection.mutable.Set.empty[Int]
     }
   }
@@ -62,6 +60,7 @@ class ClusterCentral extends  FSM[CCState,CCData]{
     case Some(s:scala.collection.mutable.HashMap[String,SoftwareInfo]) =>  s
     case None => {
       log.info("Can't load current backup,")
+      sendNotification(NotifInfo,"Can't load current backup,using empty")
       scala.collection.mutable.HashMap.empty[String,SoftwareInfo]
     }
   }
@@ -74,11 +73,13 @@ class ClusterCentral extends  FSM[CCState,CCData]{
   }
 
   log.info("{} software loaded into central",clusterModules.size)
+  sendNotification(NotifInfo,s"${clusterModules.size} software loaded into central")
   startWith(Idle,Empty)
 
   when(Idle)  {
     case Event(SigRegisterClusterHandler(clusterId),Empty) => {
       log.info("Cluster {} is registered",clusterId)
+      sendNotification(NotifInfo,s"Cluster ${clusterId} is registered")
       implicit val executor = context.system.dispatcher
       val clusterHandlerRef = sender()
       sender() ! SigRegisterClusterHandlerAck
@@ -93,7 +94,7 @@ class ClusterCentral extends  FSM[CCState,CCData]{
 
     case Event(SupplyInitialSw(clusterId),Empty) => {
       calculateSwToCluster(Map.empty[String,SoftwareInfo],clusterModules.toMap) match {
-        case None => {log.error("Nothing to be added to initial SW"); stay()}
+        case None => {log.info("Nothing to be added to initial SW"); stay()}
         case Some(deps) => {
           val targetCluster= clusterHandlers(clusterId)
           goto(Busy) using UpgradeTarget(Set.empty[ActorRef] + targetCluster,deps,true,clusterModules.toMap)
@@ -103,7 +104,11 @@ class ClusterCentral extends  FSM[CCState,CCData]{
     case Event(SupplyUpgradeSw(path),Empty) => {
       try {
         SwBackupHandler.readBackup(path + File.separator + "upgrade.xml") match {
-          case None => {log.error("Error reading upgrade.xml in {}",path);stay()}
+          case None => {
+            log.error("Error reading upgrade.xml in {}",path)
+            sendNotification(NotifError,s"Upgrade failed ${path}")
+            stay()
+          }
           case Some(newClusterModules) => {
             //copy new clusterModules into AppLib
             var copyDone= true
@@ -115,17 +120,25 @@ class ClusterCentral extends  FSM[CCState,CCData]{
                 if(copySuccess == false)  {
                   log.error("Error copying {}",name_version)
                   copyDone = false
+                  sendNotification(NotifError,s"Upgrade failed ${path}")
                 }
               }
             }
             if(copyDone == true)  {
               //copy success, rebuild the appDirModules
               buildJarListInAppDir(AppLibDir,newClusterModules.toMap) match  {
-                case None => {log.error("Can't build App Jars for upgrade {}",path);stay()}
+                case None => {
+                  log.error("Can't build App Jars for upgrade {}",path)
+                  sendNotification(NotifError,s"Upgrade failed ${path}")
+                  stay()
+                }
                 case Some(d) => {
                   appDirModules ++= d
                   calculateSwToCluster(clusterModules.toMap,newClusterModules.toMap) match {
-                    case None => {log.error("Nothing to be added to initial SW"); stay()}
+                    case None => {
+                      log.error("Nothing to be added to initial SW")
+                      sendNotification(NotifError,s"Upgrade failed ${path}")
+                      stay()}
                     case Some(deps) => {
                       val targetClusters = Set.empty[ActorRef] ++ clusterHandlers.values
                       goto(Busy) using UpgradeTarget(targetClusters,deps,false,newClusterModules.toMap)
@@ -135,12 +148,17 @@ class ClusterCentral extends  FSM[CCState,CCData]{
               }
             } else  {
               log.warning("Copy AppLib dir failed")
+              sendNotification(NotifError,s"Upgrade failed ${path}")
               stay()
             }
           }
         }
       } catch {
-        case e:Exception => {log.error("Excpetion applying upgrade pacakge",e);stay()}
+        case e:Exception => {
+          log.error("Excpetion applying upgrade pacakge",e)
+          sendNotification(NotifError,s"Upgrade failed ${path}")
+          stay()
+        }
       }
     }
   }
@@ -159,6 +177,7 @@ class ClusterCentral extends  FSM[CCState,CCData]{
           log.info("Saving backup with the new SW")
           clusterModules ++= sws
           SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
+          sendNotification(NotifInfo,s"Upgrade successfully done.")
         }
         goto(Idle) using Empty
       }
@@ -167,6 +186,7 @@ class ClusterCentral extends  FSM[CCState,CCData]{
     }
     case Event(StateTimeout,_) => {
       log.error("Timeout waiting for upgrade the members, order cluster reboot")
+      sendNotification(NotifError,s"Upgrade failed ")
       orderClusterRestart(false)
       goto(Idle) using Empty
     }
@@ -201,6 +221,21 @@ class ClusterCentral extends  FSM[CCState,CCData]{
       sender ! SigVipAskAck(cluster = clusterHandlers.keySet.toSet,ports = clusterOpenPorts.toSet)
       stay()
     }
+
+      //jmx related event
+    case Event(JmxRestart(clusterId,large), _) => {
+      if(clusterId == -1 )  {
+        orderClusterRestart(large)
+      } else {
+        orderSingleNodeRestart(clusterId, large)
+      }
+      stay()
+    }
+
+    case Event(JmxGetClusterInfo,_) => {
+      sender ! JmxGetClusterInfoResult(clusterModules.toMap)
+      stay()
+    }
   }
 
   onTransition  {
@@ -227,18 +262,21 @@ class ClusterCentral extends  FSM[CCState,CCData]{
   override def preStart() = {
     super.preStart()
     val mbs = ManagementFactory.getPlatformMBeanServer
-
-    mbs.registerMBean(new JMXCluster(self),obName)
-    standaloneMiniConsole = new StandaloneMiniConsole(8888)
-
+    mbs.registerMBean(jmx,jmxObName)
+    standalone = new StandaloneMiniConsole(8888)
   }
 
   override def postStop() ={
     val mbs = ManagementFactory.getPlatformMBeanServer
-    mbs.unregisterMBean(obName)
-    standaloneMiniConsole.shutdown()
+    mbs.unregisterMBean(jmxObName)
+    standalone.shutdown()
     super.postStop()
   }
+
+  private def sendNotification(nt:String, content:String):Unit = {
+    jmx.sendNotification(new Notification(nt,jmx,0,System.currentTimeMillis(),content))
+  }
+
   private def calculateSwToCluster(current:Map[String,SoftwareInfo], add:Map[String,SoftwareInfo]):Option[Seq[DeployInfo]] = {
     val newSwOption = SwBackupHandler.resolveDifference(current,add)
     //val targetCluster= clusterHandlers(clusterId)
@@ -333,8 +371,6 @@ class ClusterCentral extends  FSM[CCState,CCData]{
     }
     ret
   }
-
-
 }
 
 class AppFileFilter(name_version:String) extends FileFilter  {

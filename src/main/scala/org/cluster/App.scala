@@ -89,7 +89,7 @@ object App {
 
 
       //===============For testing purpose=========================
-      /*actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId))
+      actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId))
       Thread.sleep(8000)
 
       val clusterCentral = actorSystem.actorOf(ClusterSingletonProxy.props(
@@ -97,7 +97,7 @@ object App {
         role = Some("SC")))
       Thread.sleep(8000)
       //clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
-      clusterCentral ! SigOpenPort(18080)*/
+      clusterCentral ! SigOpenPort(18080)
       //===================================================
 
     } else  {

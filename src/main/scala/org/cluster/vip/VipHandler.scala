@@ -96,10 +96,55 @@ class VipHandler(master:Boolean) extends Actor with ActorLogging{
     sb.append(vip)
     sb.append("\n")
     sb.append(
-      """
+      s"""
         |        }
         |}
+        |virtual_server $vip 8888 {
+        | delay_loop 3
+        | lb_algo wrr
+        | lb_kind DR
+        | persistence_timeout 0
+        | protocol TCP
+        | real_server ${VipHandler.getClusterIp(0)} 8888 {
+        |   weight 1
+        |   TCP_CHECK {
+        |     connect_port 8888
+        |     connect_timeout 4
+        |   }
+        | }
         |
+        | real_server ${VipHandler.getClusterIp(1)} 8888 {
+        |   weight 1
+        |   TCP_CHECK {
+        |     connect_port 8888
+        |     connect_timeout 4
+        |   }
+        | }
+        |
+        |}
+        |
+        |virtual_server $vip 8889 {
+        |delay_loop 3
+        |lb_algo wrr
+        |lb_kind DR
+        |persistence_timeout 0
+        |protocol TCP
+        |real_server ${VipHandler.getClusterIp(0)} 8889 {
+        |weight 1
+        |TCP_CHECK {
+        |connect_port 8889
+        |connect_timeout 4
+        |}
+        |}
+        |
+        |real_server ${VipHandler.getClusterIp(1)} 8889 {
+        |weight 1
+        |TCP_CHECK {
+        |connect_port 8889
+        |connect_timeout 4
+        |}
+        |}
+        |}
       """.stripMargin)
 
     //virtual server

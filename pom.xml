@@ -65,12 +65,11 @@
       <artifactId>scala-xml_${scala.compat.version}</artifactId>
       <version>1.0.5</version>
     </dependency>
-
-      <dependency>
-          <groupId>org.jminix</groupId>
-          <artifactId>jminix</artifactId>
-          <version>1.2.0</version>
-      </dependency>
+    <dependency>
+      <groupId>org.jminix</groupId>
+      <artifactId>jminix</artifactId>
+      <version>1.2.0</version>
+    </dependency>
 
     <!-- Test -->
       <dependency>

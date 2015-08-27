@@ -32,7 +32,7 @@ object SwBackupHandler {
       Some(ret)
     }catch {
       case e:Exception => {
-        log.error("Exception reading back files, {}" ,e)
+        log.error("Exception reading back files" ,e)
         None
       }
     }
@@ -50,7 +50,7 @@ object SwBackupHandler {
       Some(ret)
     }catch {
       case e:Exception => {
-        log.error("Exception reading port back files, {}" ,e)
+        log.error("Exception reading port back files" ,e)
         None
       }
     }
