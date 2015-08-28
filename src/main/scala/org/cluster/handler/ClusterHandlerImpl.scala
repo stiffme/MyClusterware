@@ -3,6 +3,7 @@ package org.cluster.handler
 import java.io.File
 import java.net.{URL, URLClassLoader}
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import org.cluster.App
 
 import scala.concurrent.Await
@@ -16,7 +17,7 @@ import scala.collection.mutable
 /**
  * Created by stiffme on 2015/8/22.
  */
-class ClusterHandlerImpl(clusterId:Int) extends ClusterHandlerTrait{
+class ClusterHandlerImpl(clusterId:Int,delegatingConfig: CMDelegatingConfig) extends ClusterHandlerTrait{
   val cluster = Cluster(context.system)
   val clusterModules = new mutable.HashMap[String,ActorRef]()
 
@@ -47,11 +48,16 @@ class ClusterHandlerImpl(clusterId:Int) extends ClusterHandlerTrait{
   private def supplyNewSoftware(name:String,jars:Set[String]):Boolean  = {
     val classpath = jars.map(j => { (new File(j)).toURL} ).toArray
     val loader = new URLClassLoader(classpath)
+
+    val config = ConfigFactory.load(loader)
+    delegatingConfig.attachConfig(name,config)
+
     implicit val timeout = Timeout(1 second)
     val mainClazz = loader.loadClass(s"app.$name.MainActor")
     val mainActor = context.actorOf(Props(mainClazz))
 
-    //val initFuture = mainActor.ask(SigCMInit).mapTo[SigCMInitResult]
+
+
     val initResult = Await.result(mainActor.ask(SigCMInit(clusterModules.toMap)).mapTo[SigCMInitResult],timeout.duration)
     if(initResult.success == false) return false
 
@@ -66,14 +72,19 @@ class ClusterHandlerImpl(clusterId:Int) extends ClusterHandlerTrait{
     val classpath = jars.map(j => { (new File(j)).toURL} ).toArray
     val loader = new URLClassLoader(classpath)
     implicit val timeout = Timeout(1 second)
+    val config = ConfigFactory.load(loader)
+    delegatingConfig.attachConfig(name,config)
+
     val mainClazz = loader.loadClass(s"app.$name.MainActor")
     val mainActor = context.actorOf(Props(mainClazz))
     val oldActor = clusterModules(name)
 
+
+
     //init new actor
     val initResult = Await.result(mainActor.ask(SigCMInit(clusterModules.toMap)).mapTo[SigCMInitResult],timeout.duration)
     if(initResult.success == false) return false
-    //handover
+
     val handResult = Await.result(oldActor.ask(SigCMHandover(mainActor)).mapTo[SigCMHandoverResult],timeout.duration)
     if(handResult.success == false) return false
 

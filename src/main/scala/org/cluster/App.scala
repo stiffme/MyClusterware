@@ -2,9 +2,9 @@ package org.cluster
 
 import akka.actor.{PoisonPill, Props, ActorSystem}
 import akka.contrib.pattern.{ClusterSingletonProxy, ClusterSingletonManager}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigParseOptions, ConfigFactory}
 import org.cluster.central.{SigOpenPort, SupplyUpgradeSw, ClusterCentral}
-import org.cluster.handler.ClusterHandlerImpl
+import org.cluster.handler.{CMDelegatingConfig, ClusterModuleClassLoader, ClusterHandlerImpl}
 import org.cluster.vip.VipHandler
 import org.slf4j.LoggerFactory
 
@@ -65,12 +65,15 @@ object App {
     val master = clusterId == 0
     val firstSeed = VipHandler.getClusterIp(0)
     val secondSeed = VipHandler.getClusterIp(1)
-    val config = ConfigFactory.parseString(
+    val classLoader = new ClusterModuleClassLoader(App.getClass.getClassLoader)
+
+    val config = new CMDelegatingConfig( ConfigFactory.parseString(
       s"""
          |akka.cluster.roles = [ "$currentRole" ]
          |akka.remote.netty.tcp.hostname = "$currentClusterIp"
          |akka.cluster.seed-nodes = ["akka.tcp://ClusterSystem@${firstSeed}:2551" , "akka.tcp://ClusterSystem@${secondSeed}:2551"]
-       """.stripMargin).withFallback(ConfigFactory.load)
+       """.stripMargin).withFallback(ConfigFactory.load()))
+
 
     actorSystem = ActorSystem(actorName,config)
     if(currentRole.equals("SC"))  {
@@ -89,7 +92,7 @@ object App {
 
 
       //===============For testing purpose=========================
-      actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId))
+      actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId,config))
       Thread.sleep(8000)
 
       val clusterCentral = actorSystem.actorOf(ClusterSingletonProxy.props(

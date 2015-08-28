@@ -1,6 +1,6 @@
 import akka.actor.{Actor, Props, ActorRef, ActorSystem}
 import akka.testkit.{EventFilter, ImplicitSender, TestKit}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.cluster.module._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.collection.immutable.HashMap
@@ -36,6 +36,8 @@ class ClusterModuleTest (_system:ActorSystem) extends TestKit(_system)
     }
 
     override def onTerminate(): Boolean = {log.info("onTerminate");true}
+
+    //override def getConfig: Config = null
   }
 
   "Everything fine Cluster module" in {

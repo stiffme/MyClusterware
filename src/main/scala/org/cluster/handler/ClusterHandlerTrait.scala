@@ -2,6 +2,7 @@ package org.cluster.handler
 
 import akka.actor.{ActorRef, Actor, FSM}
 import akka.contrib.pattern.ClusterSingletonProxy
+import com.typesafe.config.Config
 import scala.concurrent.duration._
 import scala.collection.immutable.HashMap
 

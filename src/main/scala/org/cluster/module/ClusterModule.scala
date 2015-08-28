@@ -1,6 +1,7 @@
 package org.cluster.module
 
 import akka.actor.{ActorLogging, ActorRef, Actor, FSM}
+import com.typesafe.config.Config
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
 /**
@@ -35,6 +36,7 @@ case object CMDataEmpty extends ClusterModuleData
 //signal
 case class SigCMInit(services:Map[String,ActorRef])
 case class SigCMInitResult(success:Boolean)
+//case class SigCMInitResultWithConfig(success:Boolean,config:Config)
 case object SigCMActivate
 case class SigCMActivateResult(success:Boolean)
 case class SigCMHandover(target:ActorRef)
@@ -53,6 +55,7 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
   def onTerminate():Boolean
   def refreshReference(name:String,actor:ActorRef):Boolean
   def appReceive:PartialFunction[Any,Unit]
+  //def getConfig:Config
 
   //initial state: Uninitialized,CMEmpty
   startWith(Uninitialized,CMDataEmpty)
@@ -176,7 +179,7 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
             self ! SigCMActivateResult(success)
           } catch {
             case e:Exception  => {
-              log.error("Exception Activating cluster module",e)
+              log.error("Exception Activating cluster module {}",e)
               sender ! SigCMActivateResult(false)
               self ! SigCMActivateResult(false)
             }
