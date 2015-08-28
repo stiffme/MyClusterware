@@ -97,7 +97,7 @@ object App {
         role = Some("SC")))
       Thread.sleep(8000)
       //clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
-      clusterCentral ! SigOpenPort(18080)
+      //clusterCentral ! SigOpenPort(18080)
       //===================================================
 
     } else  {

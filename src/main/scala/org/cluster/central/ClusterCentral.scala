@@ -140,8 +140,13 @@ class ClusterCentral extends  FSM[CCState,CCData]{
                       sendNotification(NotifError,s"Upgrade failed ${path}")
                       stay()}
                     case Some(deps) => {
-                      val targetClusters = Set.empty[ActorRef] ++ clusterHandlers.values
-                      goto(Busy) using UpgradeTarget(targetClusters,deps,false,newClusterModules.toMap)
+                      if(clusterHandlers.size != 0) {
+                        val targetClusters = Set.empty[ActorRef] ++ clusterHandlers.values
+                        goto(Busy) using UpgradeTarget(targetClusters,deps,false,newClusterModules.toMap)
+                      } else{
+                        sendNotification(NotifError,s"Upgrade failed ${path},no PL connected")
+                        stay()
+                      }
                     }
                   }
                 }
@@ -155,7 +160,8 @@ class ClusterCentral extends  FSM[CCState,CCData]{
         }
       } catch {
         case e:Exception => {
-          log.error("Excpetion applying upgrade pacakge",e)
+          log.error("Excpetion applying upgrade pacakge {}",e)
+          e.printStackTrace()
           sendNotification(NotifError,s"Upgrade failed ${path}")
           stay()
         }

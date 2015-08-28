@@ -23,7 +23,7 @@ class VipHandler(master:Boolean) extends Actor with ActorLogging{
   //var keepAlivedProcess = null
   val openedPorts = collection.mutable.Set.empty[Int]
   val openedCluster = collection.mutable.Set.empty[Int]
-
+  var initial = true
   def receive = {
     case "Timeout" => clusterCentral ! SigVipAsk
     case SigVipAskAck(clusters,ports) => {
@@ -39,7 +39,9 @@ class VipHandler(master:Boolean) extends Actor with ActorLogging{
     for(c <- ports)
       if(openedPorts.contains(c) == false) changed = true
 
-    if(changed) {
+
+    if(changed || initial) {
+      initial = false
       try {
         openedCluster ++= clusters
         openedPorts ++= ports
@@ -173,7 +175,7 @@ class VipHandler(master:Boolean) extends Actor with ActorLogging{
       }
       sb.append("}")
     }
-    log.info("{}",sb.toString())
+    //log.info("{}",sb.toString())
     sb.toString()
   }
 }
