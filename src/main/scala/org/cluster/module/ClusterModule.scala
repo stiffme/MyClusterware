@@ -25,6 +25,9 @@ case object Handedover extends ClusterModuleState
 case object Terminated extends ClusterModuleState
 
 case object Faulty extends ClusterModuleState
+
+case class HandoverInfo(data:AnyRef)
+
 //data
 sealed trait ClusterModuleData
 case class CMDataSender(sender:ActorRef) extends ClusterModuleData
@@ -76,6 +79,13 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
       val origin = sender()
       goto(Activated) using CMDataSender(origin)
     }
+    case Event(e @ HandoverInfo(_),_) => {
+      if(appReceive.isDefinedAt(e)) {
+        log.info("app handling {}",e)
+        appReceive(e)
+      }
+      stay()
+    }
   }
 
   when(Activated) {
@@ -106,8 +116,12 @@ trait ClusterModule extends FSM[ClusterModuleState,ClusterModuleData] with Actor
     }
 
     case Event(e,_) =>  {
-      if(appReceive.isDefinedAt(e))
+      log.info("Event during active {}",e)
+      if(appReceive.isDefinedAt(e)) {
+        log.info("app handling {}",e)
         appReceive(e)
+      }
+
       stay()
     }
   }

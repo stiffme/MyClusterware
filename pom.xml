@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.cluster</groupId>
   <artifactId>clusterware</artifactId>
-  <version>1.1</version>
+  <version>1.2</version>
   <name>${project.artifactId}</name>
   <description>My wonderfull scala app</description>
   <inceptionYear>2015</inceptionYear>

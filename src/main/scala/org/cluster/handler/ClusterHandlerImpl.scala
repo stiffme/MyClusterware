@@ -20,7 +20,7 @@ import scala.collection.mutable
 class ClusterHandlerImpl(clusterId:Int,delegatingConfig: CMDelegatingConfig) extends ClusterHandlerTrait{
   val cluster = Cluster(context.system)
   val clusterModules = new mutable.HashMap[String,ActorRef]()
-
+  val moduleClusterLoader = new CMDelegatingClassloader(getClass.getClassLoader)
 
   //def this() = {this}
   override def registerSelf: Unit = {
@@ -47,7 +47,7 @@ class ClusterHandlerImpl(clusterId:Int,delegatingConfig: CMDelegatingConfig) ext
 
   private def supplyNewSoftware(name:String,jars:Set[String]):Boolean  = {
     val classpath = jars.map(j => { (new File(j)).toURL} ).toArray
-    val loader = new URLClassLoader(classpath)
+    val loader = moduleClusterLoader.attachClassloader(name,classpath)
 
     val config = ConfigFactory.load(loader)
     delegatingConfig.attachConfig(name,config)
@@ -70,7 +70,8 @@ class ClusterHandlerImpl(clusterId:Int,delegatingConfig: CMDelegatingConfig) ext
 
   private def upgradeSoftware(name:String,jars:Set[String]):Boolean = {
     val classpath = jars.map(j => { (new File(j)).toURL} ).toArray
-    val loader = new URLClassLoader(classpath)
+    val loader = moduleClusterLoader.attachClassloader(name,classpath)
+
     implicit val timeout = Timeout(1 second)
     val config = ConfigFactory.load(loader)
     delegatingConfig.attachConfig(name,config)
