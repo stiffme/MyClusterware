@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 /**
  * @author ${user.name}
  */
-object App {
+object OneJVMApp {
   /**
    * property parameter
    * org.cluster.LoadingDir
@@ -26,7 +26,7 @@ object App {
 
   def main(args : Array[String]) {
     if(args.length != 1)  {
-      log.error("Parameter clusterId")
+      log.error("ClusterId needed")
     }  else {
       val loadingDir = System.getProperty("org.cluster.LoadingDir")
       if(loadingDir == null || loadingDir.length == 0)  {
@@ -56,6 +56,8 @@ object App {
 
   }
 
+
+
   def startNode(c:Int) = {
     this.clusterId = c
 
@@ -71,6 +73,7 @@ object App {
       s"""
          |akka.cluster.roles = [ "$currentRole" ]
          |akka.remote.netty.tcp.hostname = "$currentClusterIp"
+         |akka.remote.netty.tcp.port = ${2551 + clusterId}
          |akka.cluster.seed-nodes = ["akka.tcp://ClusterSystem@${firstSeed}:2551" , "akka.tcp://ClusterSystem@${secondSeed}:2551"]
        """.stripMargin).withFallback(ConfigFactory.load()))
 
@@ -87,22 +90,6 @@ object App {
 
       //start VipHandler in SC
       actorSystem.actorOf(VipHandler.props(master),"VipHandler")
-
-
-
-
-      //===============For testing purpose=========================
-      /*actorSystem.actorOf(Props(classOf[ClusterHandlerImpl],clusterId,config))
-      Thread.sleep(8000)
-
-      val clusterCentral = actorSystem.actorOf(ClusterSingletonProxy.props(
-        singletonPath = "/user/singleton/central",
-        role = Some("SC")))
-      Thread.sleep(8000)
-      //clusterCentral ! SupplyUpgradeSw("""G:\\scalaproj\\ClusterwareWorkDir\\upgradepackage""")
-      //clusterCentral ! SigOpenPort(18080)*/
-
-      //===================================================
 
     } else  {
       //start cluster handler

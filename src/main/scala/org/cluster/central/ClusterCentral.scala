@@ -175,20 +175,26 @@ class ClusterCentral extends  FSM[CCState,CCData]{
         log.error("Supplying failed in one cluster,order node reboot")
         orderClusterRestart(false)
         goto(Idle) using Empty
-      }
-      val leftTarget = targets - sender()
-      if(leftTarget.size == 0)  {
-        if(initial == false)  {
-          //save the sw into backup
-          log.info("Saving backup with the new SW")
-          clusterModules ++= sws
-          SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
-          sendNotification(NotifInfo,s"Upgrade successfully done.")
+      }else { //successful
+        val leftTarget = targets - sender()
+        if(leftTarget.size == 0)  {
+          if(initial == false)  {
+            sendNotification(NotifInfo,s"Upgrade successfully done.")
+            //save the sw into backup
+            log.info("Saving backup with the new SW")
+            clusterModules ++= sws
+            SwBackupHandler.saveBackup(DefaultBackup,clusterModules,clusterOpenPorts.toSet)
+
+          } else{
+            sendNotification(NotifInfo,s"Initial load on one cluster done.")
+          }
+
+          goto(Idle) using Empty
         }
-        goto(Idle) using Empty
+        else
+          stay() using UpgradeTarget(leftTarget,deps,initial,sws)
       }
-      else
-        stay() using UpgradeTarget(leftTarget,deps,initial,sws)
+
     }
     case Event(StateTimeout,_) => {
       log.error("Timeout waiting for upgrade the members, order cluster reboot")
